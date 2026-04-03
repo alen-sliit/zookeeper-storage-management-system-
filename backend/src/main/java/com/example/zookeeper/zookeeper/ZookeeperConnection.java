@@ -34,11 +34,9 @@ public class ZookeeperConnection {
             }
         };
         
-        // Create ZooKeeper client (this happens asynchronously)
         System.out.println("Connecting to ZooKeeper at: " + connectionString);
         this.zooKeeper = new ZooKeeper(connectionString, SESSION_TIMEOUT, watcher);
-        
-        // Wait for connection to complete (with timeout)
+    
         boolean connected = connectionLatch.await(SESSION_TIMEOUT, TimeUnit.MILLISECONDS);
         
         if (!connected) {
@@ -48,26 +46,16 @@ public class ZookeeperConnection {
         return this.zooKeeper;
     }
     
-    /**
-     * Close the ZooKeeper connection
-     */
     public void close() throws Exception {
         if (zooKeeper != null) {
             zooKeeper.close();
             System.out.println("ZooKeeper connection closed");
         }
     }
-    
-    /**
-     * Get the ZooKeeper client instance
-     */
     public ZooKeeper getZooKeeper() {
         return zooKeeper;
     }
     
-    /**
-     * Check if currently connected to ZooKeeper
-     */
     public boolean isConnected() {
         return zooKeeper != null && zooKeeper.getState().isConnected();
     }
