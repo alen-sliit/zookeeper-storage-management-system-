@@ -14,7 +14,6 @@ public class ZookeeperOperations {
         this.zooKeeper = zooKeeper;
     }
     
-    // 1. CREATE a node
     public void createNode(String path, String data, CreateMode mode) throws Exception {
         String createdPath = zooKeeper.create(
             path,
@@ -25,7 +24,6 @@ public class ZookeeperOperations {
         System.out.println("Created: " + createdPath);
     }
     
-    // 2. DELETE a node
     public void deleteNode(String path) throws Exception {
         // -1 means delete regardless of version
         zooKeeper.delete(path, -1);
