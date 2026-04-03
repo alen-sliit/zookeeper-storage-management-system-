@@ -8,10 +8,6 @@ import org.apache.zookeeper.Watcher.Event.KeeperState;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-/**
- * This class handles the connection to ZooKeeper.
- * It manages the connection lifecycle and provides a connected ZooKeeper client.
- */
 public class ZookeeperConnection {
     
     // ZooKeeper client instance
@@ -23,12 +19,6 @@ public class ZookeeperConnection {
     // Connection timeout in milliseconds
     private static final int SESSION_TIMEOUT = 3000;
     
-    /**
-     * Connect to ZooKeeper ensemble
-     * @param connectionString Comma-separated list of ZooKeeper servers (e.g., "localhost:2181")
-     * @return Connected ZooKeeper instance
-     * @throws Exception If connection fails
-     */
     public ZooKeeper connect(String connectionString) throws Exception {
         
         // Create watcher to listen for connection events
