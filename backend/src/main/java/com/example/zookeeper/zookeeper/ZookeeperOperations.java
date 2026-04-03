@@ -18,19 +18,17 @@ public class ZookeeperOperations {
         String createdPath = zooKeeper.create(
             path,
             data.getBytes(),
-            ZooDefs.Ids.OPEN_ACL_UNSAFE,  // Open permissions (for testing)
+            ZooDefs.Ids.OPEN_ACL_UNSAFE,  
             mode
         );
         System.out.println("Created: " + createdPath);
     }
     
     public void deleteNode(String path) throws Exception {
-        // -1 means delete regardless of version
         zooKeeper.delete(path, -1);
         System.out.println("Deleted: " + path);
     }
     
-    // 3. CHECK if a node exists
     public boolean exists(String path) throws Exception {
         return zooKeeper.exists(path, false) != null;
     }
