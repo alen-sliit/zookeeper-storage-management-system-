@@ -33,31 +33,25 @@ public class ZookeeperOperations {
         return zooKeeper.exists(path, false) != null;
     }
     
-    // 4. GET DATA from a node
     public String getData(String path) throws Exception {
         byte[] data = zooKeeper.getData(path, false, null);
         return new String(data);
     }
     
-    // 5. SET DATA on a node
     public void setData(String path, String data) throws Exception {
         zooKeeper.setData(path, data.getBytes(), -1);
         System.out.println("Updated " + path + " with: " + data);
     }
     
-    // 6. GET CHILDREN of a node
     public List<String> getChildren(String path) throws Exception {
         return zooKeeper.getChildren(path, false);
     }
     
-    // 7. CREATE EPHEMERAL node (dies when connection closes)
     public void createEphemeralNode(String path, String data) throws Exception {
         createNode(path, data, CreateMode.EPHEMERAL);
         System.out.println("Created ephemeral node: " + path);
         System.out.println("This will disappear when connection closes!");
     }
-    
-    // 8. CREATE SEQUENTIAL node (auto-numbered)
     public void createSequentialNode(String path, String data, boolean ephemeral) throws Exception {
         CreateMode mode;
         if (ephemeral) {
@@ -75,7 +69,6 @@ public class ZookeeperOperations {
         System.out.println("Created sequential node: " + createdPath);
     }
     
-    // 9. SET A WATCH (get notified when node changes)
     public void setWatch(String path) throws Exception {
         // Pass 'true' to set a watch
         zooKeeper.exists(path, event -> {
