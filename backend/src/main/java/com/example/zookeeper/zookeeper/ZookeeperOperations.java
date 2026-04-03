@@ -70,7 +70,7 @@ public class ZookeeperOperations {
     }
     
     public void setWatch(String path) throws Exception {
-        // Pass 'true' to set a watch
+      
         zooKeeper.exists(path, event -> {
             System.out.println("Watch triggered on " + path);
             System.out.println("Event type: " + event.getType());
@@ -79,22 +79,21 @@ public class ZookeeperOperations {
         System.out.println("Watch set on: " + path);
     }
     
-    // 10. DEMO: Create a node and see ephemeral behavior
+    
     public void demoEphemeralNode() throws Exception {
         String path = "/ephemeral-demo";
         
-        // Create ephemeral node
+       
         createEphemeralNode(path, "I will disappear!");
         
-        // Verify it exists
+      
         System.out.println("Does it exist? " + exists(path));
         
-        // Wait for user to press Enter
+      
         System.out.println("\nPress Enter to close connection and see ephemeral node disappear...");
         System.in.read();
     }
     
-    // 11. DEMO: Sequential nodes
     public void demoSequentialNodes() throws Exception {
         System.out.println("\n=== Sequential Node Demo ===");
         createSequentialNode("/task-", "Task 1", false);
@@ -104,36 +103,24 @@ public class ZookeeperOperations {
         List<String> children = getChildren("/");
         System.out.println("All nodes: " + children);
     }
-    
-    // 12. DEMO: Watch for changes
     public void demoWatch() throws Exception {
         String path = "/watch-demo";
-        
-        // Create the node first
         createNode(path, "initial data", CreateMode.PERSISTENT);
         
-        // Set a watch
         setWatch(path);
         
-        // Change the data - this will trigger the watch
         System.out.println("\nUpdating data to trigger watch...");
         setData(path, "new data");
         
-        // Wait a moment for watch to trigger
         Thread.sleep(1000);
         
-        // Clean up
         deleteNode(path);
     }
     
-    // 13. DEMO: List all servers (simulate registration)
     public void demoServerRegistration(String serverId) throws Exception {
         String path = "/servers/" + serverId;
         
-        // Register as ephemeral node
         createEphemeralNode(path, "Server " + serverId + " is alive");
-        
-        // List all registered servers
         List<String> servers = getChildren("/servers");
         System.out.println("Active servers: " + servers);
     }
