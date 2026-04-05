@@ -6,10 +6,6 @@ import org.apache.zookeeper.ZooKeeper;
 
 import java.util.concurrent.CountDownLatch;
 
-/**
- * Watcher that monitors the leader node.
- * When leader disappears, this triggers a new election.
- */
 public class ElectionWatcher implements Watcher {
     
     private final ZooKeeper zooKeeper;
@@ -36,14 +32,12 @@ public class ElectionWatcher implements Watcher {
                           " received event: " + eventType + 
                           " on path: " + path);
         
-        // Check if this is a NodeDeleted event on the leader node
         if (path != null && path.equals("/leader") && 
             eventType == Watcher.Event.EventType.NodeDeleted) {
             
             System.out.println("[Watcher] Server " + serverId + 
                               " detected leader is dead! Starting election...");
             
-            // Leader is dead! Try to become the new leader
             try {
                 leaderElection.electLeader();
             } catch (Exception e) {
@@ -52,7 +46,6 @@ public class ElectionWatcher implements Watcher {
             }
         }
         
-        // Also handle when connection is lost
         if (state == Watcher.Event.KeeperState.Disconnected) {
             System.out.println("[Watcher] Server " + serverId + 
                               " disconnected from ZooKeeper!");
@@ -61,7 +54,6 @@ public class ElectionWatcher implements Watcher {
         if (state == Watcher.Event.KeeperState.SyncConnected) {
             System.out.println("[Watcher] Server " + serverId + 
                               " reconnected to ZooKeeper!");
-            // Try to re-establish leadership if needed
             try {
                 leaderElection.electLeader();
             } catch (Exception e) {
@@ -69,7 +61,6 @@ public class ElectionWatcher implements Watcher {
             }
         }
         
-        // Signal that we've processed the event
         if (leaderElectedLatch != null) {
             leaderElectedLatch.countDown();
         }
