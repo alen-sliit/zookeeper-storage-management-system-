@@ -7,16 +7,12 @@ import org.apache.zookeeper.data.Stat;
 
 import java.util.concurrent.atomic.AtomicLong;
 
-/**
- * Monitors the health of the consensus system.
- * Tracks leader changes, session events, and performance metrics.
- */
 public class ConsensusMonitor {
     
     private final ZooKeeper zooKeeper;
     private final String serverId;
     
-    // Metrics
+    
     private final AtomicLong leaderElectionCount = new AtomicLong(0);
     private final AtomicLong sessionExpirations = new AtomicLong(0);
     private final AtomicLong reconnections = new AtomicLong(0);
@@ -30,12 +26,8 @@ public class ConsensusMonitor {
         setupMonitor();
     }
     
-    /**
-     * Set up monitoring watches.
-     */
     private void setupMonitor() {
         try {
-            // Watch leader node for changes
             String leaderPath = "/leader/current";
             Stat stat = zooKeeper.exists(leaderPath, new LeaderChangeWatcher());
             
@@ -51,9 +43,6 @@ public class ConsensusMonitor {
         }
     }
     
-    /**
-     * Watcher for leader changes.
-     */
     private class LeaderChangeWatcher implements Watcher {
         @Override
         public void process(WatchedEvent event) {
@@ -81,7 +70,6 @@ public class ConsensusMonitor {
                         lastLeaderElectionTime = now;
                     }
                     
-                    // Re-set the watch
                     zooKeeper.exists(leaderPath, this);
                     
                 } catch (Exception e) {
@@ -91,25 +79,16 @@ public class ConsensusMonitor {
         }
     }
     
-    /**
-     * Record a session expiration event.
-     */
     public void recordSessionExpiration() {
         long count = sessionExpirations.incrementAndGet();
         System.out.println("[Monitor] Session expired! Total expirations: " + count);
     }
     
-    /**
-     * Record a reconnection event.
-     */
     public void recordReconnection() {
         long count = reconnections.incrementAndGet();
         System.out.println("[Monitor] Reconnected to ZooKeeper. Total reconnections: " + count);
     }
     
-    /**
-     * Get consensus health report.
-     */
     public String getHealthReport() {
         StringBuilder report = new StringBuilder();
         report.append("\n========== CONSENSUS HEALTH REPORT ==========\n");
@@ -128,24 +107,16 @@ public class ConsensusMonitor {
         return report.toString();
     }
     
-    /**
-     * Check if consensus is healthy.
-     */
     public boolean isHealthy() {
         // If we've had too many elections recently, something might be wrong
         return leaderElectionCount.get() < 10;
     }
-    
-    /**
-     * Get election count.
-     */
+
     public long getElectionCount() {
         return leaderElectionCount.get();
     }
     
-    /**
-     * Reset metrics for a new test.
-     */
+  
     public void resetMetrics() {
         leaderElectionCount.set(0);
         sessionExpirations.set(0);
