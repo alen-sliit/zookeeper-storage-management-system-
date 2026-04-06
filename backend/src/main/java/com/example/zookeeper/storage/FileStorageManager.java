@@ -549,4 +549,133 @@ public class FileStorageManager {
         logger.info("Handled failure of server {}: {} files affected", 
                 deadServerId, affectedFiles.size());
     }
+
+     
+    /**
+     * Update file metadata in ZooKeeper
+     */
+    private void updateMetadata(String nodeId, FileMetadata metadata) throws Exception {
+        String metadataPath = FILES_PATH + "/" + nodeId;
+        Stat stat = zooKeeper.exists(metadataPath, false);
+        
+        if (stat != null) {
+            zooKeeper.setData(metadataPath, metadata.toJson().getBytes(), stat.getVersion());
+            metadataCache.put(metadata.getFilename(), metadata);
+        }
+    }
+
+    private MetadataNode findLatestMetadataNodeByFilename(String filename) throws Exception {
+        List<String> children = zooKeeper.getChildren(FILES_PATH, false);
+        MetadataNode latest = null;
+
+        for (String nodeId : children) {
+            String metadataPath = FILES_PATH + "/" + nodeId;
+            Stat stat = zooKeeper.exists(metadataPath, false);
+            if (stat == null) {
+                continue;
+            }
+
+            byte[] data = zooKeeper.getData(metadataPath, false, stat);
+            FileMetadata metadata = FileMetadata.fromJson(new String(data));
+
+            if (metadata.isDeleted() || !filename.equals(metadata.getFilename())) {
+                continue;
+            }
+
+            if (latest == null || isNewer(metadata, latest.metadata)) {
+                latest = new MetadataNode(nodeId, stat, metadata);
+            }
+        }
+
+        return latest;
+    }
+
+    private boolean isNewer(FileMetadata candidate, FileMetadata current) {
+        Instant candidateTime = candidate.getModifiedAt() != null ? candidate.getModifiedAt() : candidate.getCreatedAt();
+        Instant currentTime = current.getModifiedAt() != null ? current.getModifiedAt() : current.getCreatedAt();
+        if (candidateTime == null) {
+            return false;
+        }
+        if (currentTime == null) {
+            return true;
+        }
+        return candidateTime.isAfter(currentTime);
+    }
+
+    private static class MetadataNode {
+        private final String nodeId;
+        private final Stat stat;
+        private final FileMetadata metadata;
+
+        private MetadataNode(String nodeId, Stat stat, FileMetadata metadata) {
+            this.nodeId = nodeId;
+            this.stat = stat;
+            this.metadata = metadata;
+        }
+    }
+    
+    /**
+     * Get storage statistics
+     */
+    public Map<String, Object> getStatistics() throws Exception {
+        Map<String, Object> stats = new HashMap<>();
+        
+        long totalSize = 0;
+        int fileCount = 0;
+        
+        List<FileMetadata> files = listFiles();
+        for (FileMetadata file : files) {
+            totalSize += file.getSize();
+            fileCount++;
+        }
+        
+        stats.put("fileCount", fileCount);
+        stats.put("totalSizeBytes", totalSize);
+        stats.put("serverId", serverId);
+        stats.put("storageDirectory", storageDirectory.toString());
+        
+        // Include time sync status if available
+        if (timeSyncService != null) {
+            stats.put("timeSyncHealthy", timeSyncService.isTimeSyncHealthy());
+            stats.put("clockSkewMs", timeSyncService.getMaxClockSkewMs());
+        }
+        
+        return stats;
+    }
+    
+    /**
+     * Set TimeSyncService for synchronized timestamps
+     */
+    public void setTimeSyncService(TimeSyncService timeSyncService) {
+        this.timeSyncService = timeSyncService;
+        logger.info("TimeSyncService set for FileStorageManager on server {}", serverId);
+    }
+    
+    /**
+     * Get TimeSyncService
+     */
+    public TimeSyncService getTimeSyncService() {
+        return timeSyncService;
+    }
+    
+    /**
+     * Get current synchronized time
+     */
+    public Instant getCurrentTime() {
+        if (timeSyncService != null) {
+            return timeSyncService.getCurrentTimeInstant();
+        }
+        return Instant.now();
+    }
+    
+    /**
+     * Log time synchronization status
+     */
+    public void logTimeSyncStatus() {
+        if (timeSyncService != null) {
+            logger.info(timeSyncService.getHealthReport());
+        } else {
+            logger.info("TimeSyncService not configured for server {}", serverId);
+        }
+    }
 }
