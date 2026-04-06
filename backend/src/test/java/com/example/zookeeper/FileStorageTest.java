@@ -23,13 +23,10 @@ public class FileStorageTest {
 
     @BeforeAll
     void setup() throws Exception {
-        // Use a test ZooKeeper server (you'd need to start one for testing)
-        // For now, we'll assume you have a test ZooKeeper running
         String connectString = "localhost:2181";
         zooKeeper = new ZooKeeper(connectString, 3000, watchedEvent -> {
         });
 
-        // Wait for connection
         Thread.sleep(1000);
 
         storageManager = new FileStorageManager(zooKeeper, serverId, tempDir.toString());
@@ -59,7 +56,6 @@ public class FileStorageTest {
 
     @Test
     void testListFiles() throws Exception {
-        // Upload some files
         storageManager.uploadFile("file1.txt", "Content 1".getBytes(), true);
         storageManager.uploadFile("file2.txt", "Content 2".getBytes(), true);
 
@@ -77,13 +73,48 @@ public class FileStorageTest {
         String filename = "to_delete.txt";
         storageManager.uploadFile(filename, "Delete me".getBytes(), true);
         
-        // Verify file exists
         assertNotNull(storageManager.downloadFile(filename));
         
-        // Delete file
         boolean deleteSuccess = storageManager.deleteFile(filename, true);
         assertTrue(deleteSuccess, "Delete should succeed");
         
-        // Verify file no longer exists
         assertNull(storageManager.downloadFile(filename), "File should be deleted");
     }
+      @Test
+    void testMetadataStructure() throws Exception {
+        String filename = "metadata_test.txt";
+        String content = "Test metadata";
+        
+        storageManager.uploadFile(filename, content.getBytes(), true);
+        
+        List<FileMetadata> files = storageManager.listFiles();
+        FileMetadata metadata = files.stream()
+                .filter(f -> f.getFilename().equals(filename))
+                .findFirst()
+                .orElse(null);
+        
+        assertNotNull(metadata, "Metadata should exist");
+        assertNotNull(metadata.getFileId(), "File ID should be set");
+        assertNotNull(metadata.getCreatedAt(), "Created timestamp should be set");
+        assertNotNull(metadata.getModifiedAt(), "Modified timestamp should be set");
+        assertEquals(content.length(), metadata.getSize(), "Size should match");
+        assertTrue(metadata.getLocations().size() > 0, "Should have at least one location");
+    }
+    
+    @Test
+    void testReplication() throws Exception {
+        String filename = "replicated.txt";
+        String content = "This file should be replicated";
+        
+        storageManager.uploadFile(filename, content.getBytes(), true);
+        List<FileMetadata> files = storageManager.listFiles();
+        FileMetadata metadata = files.stream()
+                .filter(f -> f.getFilename().equals(filename))
+                .findFirst()
+                .orElse(null);
+        
+        assertNotNull(metadata, "Metadata should exist");
+        assertTrue(metadata.getLocations().size() >= 1, "File should be replicated to at least one server");
+    }
+}
+
