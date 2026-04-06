@@ -262,4 +262,291 @@ public class FileStorageManager {
         
         return files;
     }
+
+    
+    /**
+     * Synchronize file replicas when this server joins the cluster.
+     */
+    public void synchronizeOnJoin() {
+        try {
+            List<String> children = zooKeeper.getChildren(FILES_PATH, false);
+            int restored = 0;
+            int addedReplica = 0;
+            int targetReplication = Integer.parseInt(REPLICATION_FACTOR);
+
+            for (String nodeId : children) {
+                String metadataPath = FILES_PATH + "/" + nodeId;
+                Stat stat = zooKeeper.exists(metadataPath, false);
+                if (stat == null) {
+                    continue;
+                }
+
+                byte[] data = zooKeeper.getData(metadataPath, false, stat);
+                FileMetadata metadata = FileMetadata.fromJson(new String(data));
+                if (metadata.isDeleted()) {
+                    continue;
+                }
+
+                Path localPath = storageDirectory.resolve(metadata.getFileId());
+                boolean localExists = Files.exists(localPath);
+                boolean listedOnThisServer = metadata.getLocations().contains(serverId);
+
+                if (listedOnThisServer && !localExists) {
+                    byte[] content = readFromAnyReplica(metadata);
+                    if (content != null) {
+                        Files.write(localPath, content);
+                        restored++;
+                    }
+                    continue;
+                }
+
+                if (!listedOnThisServer && metadata.getLocations().size() < targetReplication) {
+                    byte[] content = readFromAnyReplica(metadata);
+                    if (content != null) {
+                        Files.write(localPath, content);
+                        metadata.addLocation(serverId);
+                        updateMetadata(nodeId, metadata);
+                        addedReplica++;
+                    }
+                }
+            }
+
+            logger.info("Join sync complete for server {}: restored={}, addedReplicas={}",
+                    serverId, restored, addedReplica);
+        } catch (Exception e) {
+            logger.error("Failed to synchronize files on join for server {}", serverId, e);
+        }
+    }
+    
+    /**
+     * Replicate a file to multiple servers for fault tolerance
+     */
+    private List<String> replicateFile(String fileId, byte[] content, List<String> targetServers) {
+        int replicationCount = Math.min(Integer.parseInt(REPLICATION_FACTOR), targetServers.size());
+        List<String> successfulReplicas = new ArrayList<>();
+        
+        for (int i = 0; i < replicationCount; i++) {
+            String targetServer = targetServers.get(i);
+            if (!targetServer.equals(serverId)) {
+                try {
+                    sendFileToServer(targetServer, fileId, content);
+                    successfulReplicas.add(targetServer);
+                    logger.info("Replicated file {} to server {}", fileId, targetServer);
+                } catch (Exception e) {
+                    logger.error("Failed to replicate file {} to server {}", fileId, targetServer, e);
+                }
+            }
+        }
+
+        return successfulReplicas;
+    }
+    
+    /**
+     * Get list of alive servers (excluding self)
+     */
+    private List<String> getAliveServers() {
+        List<String> aliveServers = new ArrayList<>();
+        // This should integrate with your existing membership system
+        // For now, return a list of known servers
+        try {
+            List<String> servers = zooKeeper.getChildren("/storage-servers", false);
+            for (String server : servers) {
+                if (!server.equals(serverId)) {
+                    aliveServers.add(server);
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Failed to get alive servers", e);
+        }
+        return aliveServers;
+    }
+
+    private List<String> getAliveServersIncludingSelf() {
+        List<String> aliveServers = new ArrayList<>();
+        try {
+            aliveServers.addAll(zooKeeper.getChildren("/storage-servers", false));
+        } catch (Exception e) {
+            logger.error("Failed to get alive servers", e);
+        }
+        return aliveServers;
+    }
+
+    private byte[] readFromAnyReplica(FileMetadata metadata) {
+        for (String location : metadata.getLocations()) {
+            try {
+                if (location.equals(serverId)) {
+                    Path localPath = storageDirectory.resolve(metadata.getFileId());
+                    if (Files.exists(localPath)) {
+                        return Files.readAllBytes(localPath);
+                    }
+                } else {
+                    byte[] content = requestFileFromServer(location, metadata.getFileId());
+                    if (content != null) {
+                        return content;
+                    }
+                }
+            } catch (Exception e) {
+                logger.warn("Failed reading replica {} for file {}", location, metadata.getFilename(), e);
+            }
+        }
+        return null;
+    }
+    
+    /**
+     * Request a file from another server (simplified - would use HTTP/gRPC in production)
+     */
+    private byte[] requestFileFromServer(String serverId, String fileId) {
+        // In a real implementation, this would make an HTTP/gRPC call
+        // For now, simulate by reading from local storage if available
+        Path otherServerPath = getServerStoragePath(serverId).resolve(fileId);
+        try {
+            if (Files.exists(otherServerPath)) {
+                return Files.readAllBytes(otherServerPath);
+            }
+        } catch (IOException e) {
+            logger.error("Failed to read file from server {}: {}", serverId, fileId, e);
+        }
+        return null;
+    }
+    
+    /**
+     * Send file to another server (simplified)
+     */
+    private void sendFileToServer(String targetServer, String fileId, byte[] content) {
+        // In a real implementation, this would make an HTTP/gRPC call
+        // For simulation, write to a shared storage location
+        Path targetPath = getServerStoragePath(targetServer).resolve(fileId);
+        try {
+            Files.createDirectories(targetPath.getParent());
+            Files.write(targetPath, content);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to send file to server", e);
+        }
+    }
+
+    /**
+     * Delete file replica from the target server's simulated storage directory.
+     */
+    private void deleteReplicaFile(String targetServer, String fileId) {
+        Path replicaPath = targetServer.equals(serverId)
+                ? storageDirectory.resolve(fileId)
+                : getServerStoragePath(targetServer).resolve(fileId);
+
+        try {
+            boolean deleted = Files.deleteIfExists(replicaPath);
+            if (deleted) {
+                logger.info("Deleted replica {} on server {}", fileId, targetServer);
+            } else {
+                logger.debug("Replica {} not found on server {}", fileId, targetServer);
+            }
+        } catch (IOException e) {
+            logger.error("Failed to delete replica {} on server {}", fileId, targetServer, e);
+        }
+    }
+
+    private Path getServerStoragePath(String serverName) {
+        return storageRoot.resolve(serverName);
+    }
+    
+    /**
+     * Acquire distributed lock using ZooKeeper
+     */
+    private boolean acquireLock(String lockPath) {
+        try {
+            String createdPath = zooKeeper.create(lockPath, serverId.getBytes(),
+                    ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
+            
+            // Also track lock locally for cleanup
+            fileLocks.putIfAbsent(lockPath, new ReentrantReadWriteLock());
+            
+            logger.debug("Acquired lock: {}", lockPath);
+            return true;
+            
+        } catch (KeeperException.NodeExistsException e) {
+            // Lock is held by someone else
+            logger.debug("Lock already held: {}", lockPath);
+            return false;
+        } catch (Exception e) {
+            logger.error("Failed to acquire lock: {}", lockPath, e);
+            return false;
+        }
+    }
+    
+    /**
+     * Release distributed lock
+     */
+    private void releaseLock(String lockPath) {
+        try {
+            zooKeeper.delete(lockPath, -1);
+            fileLocks.remove(lockPath);
+            logger.debug("Released lock: {}", lockPath);
+        } catch (Exception e) {
+            logger.error("Failed to release lock: {}", lockPath, e);
+        }
+    }
+    
+    /**
+     * Handle server failure - reassign files from dead server
+     */
+    public void handleServerFailure(String deadServerId) throws Exception {
+        logger.warn("Handling failure of server: {}", deadServerId);
+        
+        List<FileMetadata> affectedFiles = new ArrayList<>();
+        
+        // Find all files that were on the dead server
+        List<String> files = zooKeeper.getChildren(FILES_PATH, false);
+        for (String nodeId : files) {
+            String metadataPath = FILES_PATH + "/" + nodeId;
+            Stat stat = zooKeeper.exists(metadataPath, false);
+            
+            if (stat != null) {
+                byte[] data = zooKeeper.getData(metadataPath, false, stat);
+                FileMetadata metadata = FileMetadata.fromJson(new String(data));
+                
+                if (metadata.getLocations().contains(deadServerId)) {
+                    affectedFiles.add(metadata);
+                }
+            }
+        }
+        
+        // For each affected file, re-replicate to available servers
+        List<String> aliveServers = getAliveServersIncludingSelf();
+        for (FileMetadata metadata : affectedFiles) {
+            metadata.removeLocation(deadServerId);
+
+            int targetReplication = Integer.parseInt(REPLICATION_FACTOR);
+            while (metadata.getLocations().size() < targetReplication) {
+                String newServer = null;
+                for (String candidate : aliveServers) {
+                    if (!metadata.getLocations().contains(candidate)) {
+                        newServer = candidate;
+                        break;
+                    }
+                }
+
+                if (newServer == null) {
+                    break;
+                }
+
+                byte[] content = readFromAnyReplica(metadata);
+                if (content == null) {
+                    logger.error("Cannot re-replicate file {}: no readable source replica", metadata.getFilename());
+                    break;
+                }
+
+                if (newServer.equals(serverId)) {
+                    Path localPath = storageDirectory.resolve(metadata.getFileId());
+                    Files.write(localPath, content);
+                } else {
+                    sendFileToServer(newServer, metadata.getFileId(), content);
+                }
+                metadata.addLocation(newServer);
+            }
+
+            updateMetadata(metadata.getFileId(), metadata);
+        }
+        
+        logger.info("Handled failure of server {}: {} files affected", 
+                deadServerId, affectedFiles.size());
+    }
 }
