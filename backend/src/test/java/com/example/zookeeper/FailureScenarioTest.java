@@ -9,10 +9,6 @@ import org.junit.jupiter.api.*;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Tests system behavior under different failure scenarios.
- * For Member 4's failure scenario evaluation.
- */
 public class FailureScenarioTest {
     
     private static final String ZK_ADDRESS = "localhost:2181";
@@ -35,10 +31,6 @@ public class FailureScenarioTest {
         metrics.saveToFile();
         connectionManager.close();
     }
-    
-    /**
-     * Test 1: Leader failover time.
-     */
     @Test
     void testLeaderFailoverTime() throws Exception {
         System.out.println("\n--- Testing Leader Failover Time ---");
@@ -52,30 +44,25 @@ public class FailureScenarioTest {
         election2.initialize();
         election3.initialize();
         
-        // Wait for leader to be elected
         Thread.sleep(2000);
         
         String initialLeader = getCurrentLeader();
         System.out.println("Initial leader: " + initialLeader);
         
-        // Find which server is leader and simulate its death
         LeaderElection leaderElection = null;
         if (election1.isLeader()) leaderElection = election1;
         else if (election2.isLeader()) leaderElection = election2;
         else if (election3.isLeader()) leaderElection = election3;
         
         if (leaderElection != null) {
-            // Simulate leader death by deleting its ephemeral nodes
             String leaderId = leaderElection.getCurrentLeader();
             System.out.println("Killing leader: " + leaderId);
             
             long startTime = System.currentTimeMillis();
             
-            // Delete leader's ephemeral node
             safeDelete("/storage-servers/" + leaderId);
             safeDelete("/leader/current");
             
-            // Wait for new leader
             long failoverTime = 0;
             for (int i = 0; i < 30; i++) {
                 Thread.sleep(500);
@@ -95,18 +82,13 @@ public class FailureScenarioTest {
             );
         }
         
-        // Clean up
         cleanupServers("failover-server-1", "failover-server-2", "failover-server-3");
     }
-    
-    /**
-     * Test 2: Multiple consecutive leader failures.
-     */
+
     @Test
     void testMultipleLeaderFailures() throws Exception {
         System.out.println("\n--- Testing Multiple Leader Failures ---");
         
-        // Create 5 servers
         LeaderElection[] elections = new LeaderElection[5];
         for (int i = 0; i < 5; i++) {
             elections[i] = new LeaderElection(zooKeeper, "multi-fail-server-" + (i + 1));
@@ -118,19 +100,15 @@ public class FailureScenarioTest {
         List<Long> failoverTimes = new ArrayList<>();
         
         for (int failure = 1; failure <= 3; failure++) {
-            // Find current leader
             String currentLeader = getCurrentLeader();
             if (currentLeader == null) break;
             
             System.out.println("Failure " + failure + ": Killing leader " + currentLeader);
             
             long startTime = System.currentTimeMillis();
-            
-            // Kill leader
+
             safeDelete("/storage-servers/" + currentLeader);
             safeDelete("/leader/current");
-            
-            // Wait for new leader
             long failoverTime = 0;
             for (int i = 0; i < 30; i++) {
                 Thread.sleep(500);
