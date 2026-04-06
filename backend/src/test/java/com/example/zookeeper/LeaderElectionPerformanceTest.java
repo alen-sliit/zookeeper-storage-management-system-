@@ -12,10 +12,6 @@ import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
-/**
- * Tests the performance of leader election under various conditions.
- * For Member 4's consensus evaluation.
- */
 public class LeaderElectionPerformanceTest {
     
     private static final String ZK_ADDRESS = "localhost:2181";
@@ -29,7 +25,6 @@ public class LeaderElectionPerformanceTest {
         zooKeeper = connectionManager.connect(ZK_ADDRESS);
         metrics = new PerformanceMetrics("LeaderElectionPerformance");
         
-        // Create parent nodes if they don't exist
         if (zooKeeper.exists("/storage-servers", false) == null) {
             zooKeeper.create("/storage-servers", new byte[0],
                 ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
@@ -49,9 +44,6 @@ public class LeaderElectionPerformanceTest {
         connectionManager.close();
     }
     
-    /**
-     * Test 1: Measure time to elect leader with different numbers of servers.
-     */
     @Test
     void testElectionTimeWithMultipleServers() throws Exception {
         int[] serverCounts = {1, 3, 5, 7, 10};
@@ -65,8 +57,7 @@ public class LeaderElectionPerformanceTest {
             AtomicInteger leaderId = new AtomicInteger(-1);
             long startTime = System.currentTimeMillis();
             long electionTime = 0;
-            
-            // Start multiple servers simultaneously
+        
             for (int i = 1; i <= count; i++) {
                 final int serverNum = i;
                 String serverId = "perf-server-" + serverNum;
@@ -87,8 +78,7 @@ public class LeaderElectionPerformanceTest {
                 serverThreads.add(t);
                 t.start();
             }
-            
-            // Wait for leader election (max 30 seconds)
+                      
             boolean elected = leaderElected.await(30, TimeUnit.SECONDS);
             electionTime = System.currentTimeMillis() - startTime;
             
@@ -99,7 +89,6 @@ public class LeaderElectionPerformanceTest {
                 "Leader elected: server-" + leaderId.get() + " in " + electionTime + "ms"
             );
             
-            // Clean up
             for (int i = 1; i <= count; i++) {
                 String serverId = "perf-server-" + i;
                 try {
@@ -115,17 +104,12 @@ public class LeaderElectionPerformanceTest {
                     zooKeeper.delete("/leader/current", -1);
                 }
             } catch (Exception e) {
-                // May not exist
             }
             
-            // Wait a bit between tests
             Thread.sleep(2000);
         }
     }
     
-    /**
-     * Test 2: Measure election time with concurrent start.
-     */
     @Test
     void testConcurrentElectionTime() throws Exception {
         int serverCount = 5;
@@ -166,7 +150,6 @@ public class LeaderElectionPerformanceTest {
             long electionTime = System.currentTimeMillis() - startTime;
             electionTimes.add(electionTime);
             
-            // Clean up
             for (int i = 1; i <= serverCount; i++) {
                 try {
                     zooKeeper.delete("/storage-servers/concurrent-server-" + i, -1);
@@ -179,7 +162,6 @@ public class LeaderElectionPerformanceTest {
             Thread.sleep(1000);
         }
         
-        // Calculate statistics
         double avg = electionTimes.stream().mapToLong(Long::longValue).average().orElse(0);
         long min = electionTimes.stream().mapToLong(Long::longValue).min().orElse(0);
         long max = electionTimes.stream().mapToLong(Long::longValue).max().orElse(0);
