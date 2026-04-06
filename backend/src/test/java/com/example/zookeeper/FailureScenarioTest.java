@@ -132,21 +132,17 @@ public class FailureScenarioTest {
             "Average failover time: " + avgFailover + "ms"
         );
         
-        // Clean up
+       
         for (int i = 0; i < 5; i++) {
             safeDelete("/storage-servers/multi-fail-server-" + (i + 1));
         }
         safeDelete("/leader/current");
     }
     
-    /**
-     * Test 3: Network partition simulation.
-     */
     @Test
     void testNetworkPartition() throws Exception {
         System.out.println("\n--- Testing Network Partition (Simulated) ---");
         
-        // Create 3 servers
         LeaderElection election1 = new LeaderElection(zooKeeper, "partition-server-1");
         LeaderElection election2 = new LeaderElection(zooKeeper, "partition-server-2");
         LeaderElection election3 = new LeaderElection(zooKeeper, "partition-server-3");
@@ -160,11 +156,8 @@ public class FailureScenarioTest {
         String initialLeader = getCurrentLeader();
         System.out.println("Initial leader: " + initialLeader);
         
-        // Simulate partition by removing one server from ZooKeeper view
-        // (In real test, this would be done with network rules)
         System.out.println("Simulating network partition - isolating follower");
         
-        // Remove a follower from the active servers list
         String follower = null;
         for (int i = 1; i <= 3; i++) {
             String id = "partition-server-" + i;
@@ -177,13 +170,11 @@ public class FailureScenarioTest {
         if (follower != null) {
             long startTime = System.currentTimeMillis();
             
-            // Simulate partition by deleting follower's ephemeral node
             safeDelete("/storage-servers/" + follower);
             
             long partitionTime = System.currentTimeMillis() - startTime;
             System.out.println("Follower " + follower + " isolated after " + partitionTime + "ms");
             
-            // Check if system still functions
             String currentLeader = getCurrentLeader();
             boolean systemHealthy = currentLeader != null && currentLeader.equals(initialLeader);
             
@@ -195,13 +186,9 @@ public class FailureScenarioTest {
             );
         }
         
-        // Clean up
         cleanupServers("partition-server-1", "partition-server-2", "partition-server-3");
     }
     
-    /**
-     * Helper: Get current leader ID.
-     */
     private String getCurrentLeader() throws Exception {
         try {
             byte[] data = zooKeeper.getData("/leader/current", false, null);
@@ -210,10 +197,6 @@ public class FailureScenarioTest {
             return null;
         }
     }
-    
-    /**
-     * Helper: Clean up test servers.
-     */
     private void cleanupServers(String... serverIds) throws Exception {
         for (String id : serverIds) {
             safeDelete("/storage-servers/" + id);
@@ -225,9 +208,7 @@ public class FailureScenarioTest {
         try {
             zooKeeper.delete(path, -1);
         } catch (KeeperException.NoNodeException ignored) {
-            // Already gone due to ephemeral session cleanup; acceptable in failure tests.
         } catch (Exception ignored) {
-            // Best-effort cleanup in tests.
         }
     }
 }
