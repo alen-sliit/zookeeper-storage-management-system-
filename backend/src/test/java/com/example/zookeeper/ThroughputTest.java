@@ -11,10 +11,7 @@ import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
-/**
- * Tests system throughput under concurrent operations.
- * For Member 4's performance evaluation.
- */
+
 public class ThroughputTest {
     
     private static final String ZK_ADDRESS = "localhost:2181";
@@ -28,7 +25,6 @@ public class ThroughputTest {
         zooKeeper = connectionManager.connect(ZK_ADDRESS);
         metrics = new PerformanceMetrics("Throughput");
         
-        // Create test parent node
         if (zooKeeper.exists("/throughput-test", false) == null) {
             zooKeeper.create("/throughput-test", new byte[0],
                 ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
@@ -43,10 +39,7 @@ public class ThroughputTest {
         metrics.saveToFile();
         connectionManager.close();
     }
-    
-    /**
-     * Test 1: Metadata write throughput.
-     */
+
     @Test
     void testMetadataWriteThroughput() throws Exception {
         System.out.println("\n--- Testing Metadata Write Throughput ---");
@@ -102,8 +95,7 @@ public class ThroughputTest {
                 String.format("Ops: %d, Success: %d, Throughput: %.2f ops/sec", 
                               totalOperations, successCount.get(), throughput)
             );
-            
-            // Clean up
+
             for (int t = 0; t < threads; t++) {
                 for (int i = 0; i < operationsPerThread; i++) {
                     try {
@@ -114,14 +106,10 @@ public class ThroughputTest {
         }
     }
     
-    /**
-     * Test 2: Metadata read throughput.
-     */
     @Test
     void testMetadataReadThroughput() throws Exception {
         System.out.println("\n--- Testing Metadata Read Throughput ---");
-        
-        // Create test nodes first
+
         int testNodeCount = 1000;
         for (int i = 0; i < testNodeCount; i++) {
             String path = "/throughput-test/read-node-" + i;
@@ -185,7 +173,6 @@ public class ThroughputTest {
             );
         }
         
-        // Clean up
         for (int i = 0; i < testNodeCount; i++) {
             try {
                 zooKeeper.delete("/throughput-test/read-node-" + i, -1);
@@ -193,9 +180,6 @@ public class ThroughputTest {
         }
     }
     
-    /**
-     * Test 3: Concurrent create operations (for locks simulation).
-     */
     @Test
     void testConcurrentCreateThroughput() throws Exception {
         System.out.println("\n--- Testing Concurrent Create Operations ---");
@@ -252,7 +236,6 @@ public class ThroughputTest {
                               totalOperations, successCount.get(), throughput)
             );
             
-            // Clean up
             List<String> children = zooKeeper.getChildren("/throughput-test", false);
             for (String child : children) {
                 if (child.startsWith("concurrent-")) {
@@ -263,10 +246,6 @@ public class ThroughputTest {
             }
         }
     }
-    
-    /**
-     * Test 4: Latency distribution.
-     */
     @Test
     void testOperationLatency() throws Exception {
         System.out.println("\n--- Testing Operation Latency ---");
@@ -279,24 +258,20 @@ public class ThroughputTest {
         for (int i = 0; i < operations; i++) {
             String path = "/throughput-test/latency-test-" + i;
             
-            // Create latency
             long start = System.nanoTime();
             zooKeeper.create(path, "data".getBytes(),
                 ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
             createLatencies.add(System.nanoTime() - start);
             
-            // Read latency
             start = System.nanoTime();
             zooKeeper.getData(path, false, null);
             readLatencies.add(System.nanoTime() - start);
             
-            // Delete latency
             start = System.nanoTime();
             zooKeeper.delete(path, -1);
             deleteLatencies.add(System.nanoTime() - start);
         }
         
-        // Calculate statistics
         long createAvg = createLatencies.stream().mapToLong(Long::longValue).sum() / operations;
         long readAvg = readLatencies.stream().mapToLong(Long::longValue).sum() / operations;
         long deleteAvg = deleteLatencies.stream().mapToLong(Long::longValue).sum() / operations;
