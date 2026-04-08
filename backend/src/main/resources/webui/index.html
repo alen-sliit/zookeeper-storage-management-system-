@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Distributed Storage System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .status-bar {
+            background: #f8f9fa;
+            padding: 15px 30px;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .status-label {
+            font-weight: bold;
+            color: #666;
+        }
+        
+        .status-value {
+            color: #333;
+            font-family: monospace;
+        }
+        
+        .leader {
+            color: #28a745;
+            font-weight: bold;
+        }
+        
+        .content {
+            display: flex;
+            gap: 20px;
+            padding: 30px;
+        }
+        
+        .sidebar {
+            width: 300px;
+            flex-shrink: 0;
+        }
+        
+        .main-content {
+            flex: 1;
+        }
+        
+        .card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .card h3 {
+            margin-bottom: 15px;
+            color: #667eea;
+        }
+        
+        .upload-area {
+            border: 2px dashed #ccc;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .upload-area:hover {
+            border-color: #667eea;
+            background: #f0f0ff;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: transform 0.2s;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        }
+        
+        .file-list {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .file-list th,
+        .file-list td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .file-list th {
+            background: #f8f9fa;
+            font-weight: bold;
+            color: #666;
+        }
+        
+        .file-list tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .file-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s;
+            width: 0%;
+        }
+        
+        .alert {
+            padding: 12px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+        
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        @media (max-width: 768px) {
+            .content {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📁 Distributed Storage System</h1>
+            <p>Fault-tolerant, replicated file storage with ZooKeeper consensus</p>
+        </div>
+        
+        <div class="status-bar">
+            <div class="status-item">
+                <span class="status-label">🔗 ZooKeeper:</span>
+                <span class="status-value" id="zk-status">Connecting...</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">👑 Leader:</span>
+                <span class="status-value leader" id="leader">Unknown</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">🖥️ Servers:</span>
+                <span class="status-value" id="server-count">0</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">📊 Files:</span>
+                <span class="status-value" id="file-count">0</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">💾 Total Size:</span>
+                <span class="status-value" id="total-size">0 B</span>
+            </div>
+        </div>
+        
+        <div class="content">
+            <div class="sidebar">
+                <div class="card">
+                    <h3>📤 Upload File</h3>
+                    <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                        <p>📁 Click or drag file here</p>
+                        <p style="font-size: 12px; color: #666; margin-top: 10px;">Max file size: 100MB</p>
+                    </div>
+                    <input type="file" id="fileInput" class="file-input" onchange="uploadFile(this.files[0])">
+                    <div id="uploadProgress" style="display: none; margin-top: 15px;">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="uploadProgressFill"></div>
+                        </div>
+                        <p id="uploadStatus" style="font-size: 12px; text-align: center;"></p>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h3>ℹ️ System Stats</h3>
+                    <div id="system-stats">
+                        <p>Loading...</p>
+                    </div>
+                    <button class="btn" onclick="refreshStats()" style="margin-top: 10px; width: 100%;">Refresh Stats</button>
+                </div>
+                
+                <div class="card">
+                    <h3>🖥️ Active Servers</h3>
+                    <div id="servers-list">
+                        <p>Loading...</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="main-content">
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <h3>📋 Files in Storage</h3>
+                        <button class="btn btn-sm" onclick="refreshFileList()">🔄 Refresh</button>
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table class="file-list">
+                            <thead>
+                                <tr>
+                                    <th>Filename</th>
+                                    <th>Size</th>
+                                    <th>Modified</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="file-list-body">
+                                <tr>
+                                    <td colspan="4" style="text-align: center;">Loading files...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- File Info Modal -->
+    <div id="infoModal" class="modal">
+        <div class="modal-content">
+            <h3>📄 File Information</h3>
+            <div id="file-info-content"></div>
+            <button class="btn" onclick="closeModal()" style="margin-top: 15px;">Close</button>
+        </div>
+    </div>
+    
+    <script>
+        let currentLeader = null;
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            refreshStatus();
+            refreshFileList();
+            refreshStats();
+            refreshServers();
+            
+            // Auto-refresh every 10 seconds
+            setInterval(() => {
+                refreshStatus();
+                refreshFileList();
+                refreshStats();
+                refreshServers();
+            }, 10000);
+        });
+        
+        async function refreshStatus() {
+            try {
+                // Check leader
+                const leaderResp = await fetch('/api/leader');
+                const leaderData = await leaderResp.json();
+                currentLeader = leaderData.leader;
+                document.getElementById('leader').textContent = currentLeader || 'None';
+                document.getElementById('zk-status').textContent = 'Connected';
+                document.getElementById('zk-status').style.color = '#28a745';
+                
+            } catch (error) {
+                document.getElementById('zk-status').textContent = 'Disconnected';
+                document.getElementById('zk-status').style.color = '#dc3545';
+                console.error('Error fetching status:', error);
+            }
+        }
+        
+        async function refreshFileList() {
+            try {
+                const response = await fetch('/api/list');
+                const files = await response.json();
+                
+                const tbody = document.getElementById('file-list-body');
+                
+                if (files.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">No files found</td></tr>';
+                    document.getElementById('file-count').textContent = '0';
+                    return;
+                }
+                
+                document.getElementById('file-count').textContent = files.length;
+                
+                tbody.innerHTML = files.map(file => `
+                    <tr>
+                        <td><strong>${escapeHtml(file.filename)}</strong></td>
+                        <td>${formatSize(file.size)}</td>
+                        <td>${new Date(file.modifiedAt).toLocaleString()}</td>
+                        <td class="file-actions">
+                            <button class="btn btn-sm" onclick="downloadFile('${escapeHtml(file.filename)}')">⬇️ Download</button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteFile('${escapeHtml(file.filename)}')">🗑️ Delete</button>
+                            <button class="btn btn-sm" onclick="showInfo('${escapeHtml(file.filename)}')">ℹ️ Info</button>
+                        </td>
+                    </tr>
+                `).join('');
+                
+            } catch (error) {
+                console.error('Error fetching file list:', error);
+                document.getElementById('file-list-body').innerHTML = '<tr><td colspan="4" style="text-align: center; color: red;">Error loading files</td></tr>';
+            }
+        }
+        
+        async function uploadFile(file) {
+            if (!file) return;
+            
+            const formData = new FormData();
+            formData.append('filename', file.name);
+            formData.append('file', file);
+            
+            const progressDiv = document.getElementById('uploadProgress');
+            const progressFill = document.getElementById('uploadProgressFill');
+            const uploadStatus = document.getElementById('uploadStatus');
+            
+            progressDiv.style.display = 'block';
+            progressFill.style.width = '0%';
+            uploadStatus.textContent = 'Uploading...';
+            
+            try {
+                const xhr = new XMLHttpRequest();
+                xhr.upload.addEventListener('progress', (e) => {
+                    if (e.lengthComputable) {
+                        const percent = (e.loaded / e.total) * 100;
+                        progressFill.style.width = percent + '%';
+                        uploadStatus.textContent = `${Math.round(percent)}% uploaded`;
+                    }
+                });
+                
+                xhr.addEventListener('load', () => {
+                    if (xhr.status === 200) {
+                        const response = JSON.parse(xhr.responseText);
+                        if (response.success) {
+                            uploadStatus.textContent = '✓ Upload complete!';
+                            setTimeout(() => {
+                                progressDiv.style.display = 'none';
+                                refreshFileList();
+                                refreshStats();
+                            }, 1000);
+                        } else {
+                            uploadStatus.textContent = '✗ Upload failed';
+                        }
+                    } else {
+                        uploadStatus.textContent = '✗ Upload failed';
+                    }
+                });
+                
+                xhr.open('POST', '/api/upload');
+                xhr.send(formData);
+                
+            } catch (error) {
+                console.error('Upload error:', error);
+                uploadStatus.textContent = '✗ Upload error: ' + error.message;
+            }
+        }
+        
+        async function downloadFile(filename) {
+            try {
+                window.location.href = `/api/download?filename=${encodeURIComponent(filename)}`;
+            } catch (error) {
+                console.error('Download error:', error);
+                showAlert('Download failed: ' + error.message, 'error');
+            }
+        }
+        
+        async function deleteFile(filename) {
+            if (!confirm(`Are you sure you want to delete "${filename}"?`)) return;
+            
+            try {
+                const response = await fetch('/api/delete', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ filename: filename })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showAlert(`✓ File "${filename}" deleted successfully`, 'success');
+                    refreshFileList();
+                    refreshStats();
+                } else {
+                    showAlert(`✗ Failed to delete "${filename}"`, 'error');
+                }
+                
+            } catch (error) {
+                console.error('Delete error:', error);
+                showAlert('Delete failed: ' + error.message, 'error');
+            }
+        }
+        
+        async function showInfo(filename) {
+            try {
+                const response = await fetch(`/api/info?filename=${encodeURIComponent(filename)}`);
+                
+                if (!response.ok) {
+                    throw new Error('File not found');
+                }
+                
+                const info = await response.json();
+                
+                const modal = document.getElementById('infoModal');
+                const content = document.getElementById('file-info-content');
+                
+                content.innerHTML = `
+                    <p><strong>Filename:</strong> ${escapeHtml(info.filename)}</p>
+                    <p><strong>File ID:</strong> <code>${info.fileId}</code></p>
+                    <p><strong>Size:</strong> ${formatSize(info.size)}</p>
+                    <p><strong>Created:</strong> ${new Date(info.createdAt).toLocaleString()}</p>
+                    <p><strong>Modified:</strong> ${new Date(info.modifiedAt).toLocaleString()}</p>
+                    <p><strong>Version:</strong> ${info.version}</p>
+                    <p><strong>Replicas:</strong> ${info.locations.length}</p>
+                    <p><strong>Stored on:</strong></p>
+                    <ul>
+                        ${info.locations.map(loc => `<li><code>${escapeHtml(loc)}</code> ${loc === currentLeader ? '(Leader)' : ''}</li>`).join('')}
+                    </ul>
+                `;
+                
+                modal.style.display = 'flex';
+                
+            } catch (error) {
+                console.error('Error fetching file info:', error);
+                showAlert('Failed to load file information', 'error');
+            }
+        }
+        
+        async function refreshStats() {
+            try {
+                const response = await fetch('/api/stats');
+                const stats = await response.json();
+                
+                const statsHtml = `
+                    <p><strong>Total Files:</strong> ${stats.totalFiles}</p>
+                    <p><strong>Total Size:</strong> ${formatSize(stats.totalSize)}</p>
+                    <p><strong>Active Servers:</strong> ${stats.activeServers}</p>
+                    <p><strong>Current Leader:</strong> <span class="leader">${escapeHtml(stats.leader)}</span></p>
+                `;
+                
+                document.getElementById('system-stats').innerHTML = statsHtml;
+                document.getElementById('total-size').textContent = formatSize(stats.totalSize);
+                document.getElementById('server-count').textContent = stats.activeServers;
+                
+            } catch (error) {
+                console.error('Error fetching stats:', error);
+            }
+        }
+        
+        async function refreshServers() {
+            try {
+                const response = await fetch('/api/servers');
+                const servers = await response.json();
+                
+                const serversHtml = servers.map(server => `
+                    <div style="padding: 8px; margin: 5px 0; background: white; border-radius: 5px; border-left: 3px solid ${server === currentLeader ? '#28a745' : '#667eea'};">
+                        <code>${escapeHtml(server)}</code>
+                        ${server === currentLeader ? '<span style="color: #28a745; margin-left: 10px;">👑 Leader</span>' : ''}
+                    </div>
+                `).join('');
+                
+                document.getElementById('servers-list').innerHTML = serversHtml || '<p>No servers active</p>';
+                
+            } catch (error) {
+                console.error('Error fetching servers:', error);
+                document.getElementById('servers-list').innerHTML = '<p style="color: red;">Error loading servers</p>';
+            }
+        }
+        
+        function formatSize(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+        
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+        
+        function showAlert(message, type) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type}`;
+            alertDiv.textContent = message;
+            alertDiv.style.position = 'fixed';
+            alertDiv.style.top = '20px';
+            alertDiv.style.right = '20px';
+            alertDiv.style.zIndex = '1000';
+            
+            document.body.appendChild(alertDiv);
+            
+            setTimeout(() => {
+                alertDiv.remove();
+            }, 3000);
+        }
+        
+        function closeModal() {
+            document.getElementById('infoModal').style.display = 'none';
+        }
+        
+        // Drag and drop support
+        const uploadArea = document.querySelector('.upload-area');
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.style.borderColor = '#667eea';
+            uploadArea.style.background = '#f0f0ff';
+        });
+        
+        uploadArea.addEventListener('dragleave', (e) => {
+            uploadArea.style.borderColor = '#ccc';
+            uploadArea.style.background = '';
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.style.borderColor = '#ccc';
+            uploadArea.style.background = '';
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                uploadFile(files[0]);
+            }
+        });
+        
+        // Click outside modal to close
+        window.onclick = (event) => {
+            const modal = document.getElementById('infoModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        };
+    </script>
+</body>
+</html>
