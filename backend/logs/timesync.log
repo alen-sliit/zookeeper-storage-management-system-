@@ -1,0 +1,36 @@
+[2026-04-10 12:51:35.010] [INFO] [server-1] TimeSyncService initialized with syncInterval=300s, monitorInterval=30s
+[2026-04-10 12:51:40.054] [DEBUG] [server-1] NTP sync attempt failed: server=pool.ntp.org, error=Receive timed out
+[2026-04-10 12:51:40.323] [INFO] [server-1] NTP sync SUCCESS: server=time.nist.gov, offset=100ms
+[2026-04-10 12:51:40.326] [INFO] [server-1] ClockSynchronizer started with sync interval 300 seconds
+[2026-04-10 12:51:40.369] [INFO] [server-1] ClockSkewMonitor started with monitor interval 30 seconds
+[2026-04-10 12:51:40.371] [INFO] [server-1] TimeSyncService STARTED
+[2026-04-10 12:54:30.097] [INFO] [server-1] TimeSyncService initialized with syncInterval=300s, monitorInterval=30s
+[2026-04-10 12:54:34.384] [INFO] [server-2] TimeSyncService initialized with syncInterval=300s, monitorInterval=30s
+[2026-04-10 12:54:35.142] [DEBUG] [server-1] NTP sync attempt failed: server=pool.ntp.org, error=Receive timed out
+[2026-04-10 12:54:35.413] [INFO] [server-1] NTP sync SUCCESS: server=time.nist.gov, offset=98ms
+[2026-04-10 12:54:35.416] [INFO] [server-1] ClockSynchronizer started with sync interval 300 seconds
+[2026-04-10 12:54:35.440] [INFO] [server-1] ClockSkewMonitor started with monitor interval 30 seconds
+[2026-04-10 12:54:35.441] [INFO] [server-1] TimeSyncService STARTED
+[2026-04-10 12:54:35.737] [INFO] [server-3] TimeSyncService initialized with syncInterval=300s, monitorInterval=30s
+[2026-04-10 12:54:36.816] [INFO] [server-4] TimeSyncService initialized with syncInterval=300s, monitorInterval=30s
+[2026-04-10 12:54:38.063] [INFO] [server-5] TimeSyncService initialized with syncInterval=300s, monitorInterval=30s
+[2026-04-10 12:54:39.403] [DEBUG] [server-2] NTP sync attempt failed: server=pool.ntp.org, error=Receive timed out
+[2026-04-10 12:54:39.662] [INFO] [server-2] NTP sync SUCCESS: server=time.nist.gov, offset=97ms
+[2026-04-10 12:54:39.668] [INFO] [server-2] ClockSynchronizer started with sync interval 300 seconds
+[2026-04-10 12:54:39.698] [INFO] [server-2] ClockSkewMonitor started with monitor interval 30 seconds
+[2026-04-10 12:54:39.699] [INFO] [server-2] TimeSyncService STARTED
+[2026-04-10 12:54:40.769] [DEBUG] [server-3] NTP sync attempt failed: server=pool.ntp.org, error=Receive timed out
+[2026-04-10 12:54:41.050] [INFO] [server-3] NTP sync SUCCESS: server=time.nist.gov, offset=111ms
+[2026-04-10 12:54:41.056] [INFO] [server-3] ClockSynchronizer started with sync interval 300 seconds
+[2026-04-10 12:54:41.084] [INFO] [server-3] ClockSkewMonitor started with monitor interval 30 seconds
+[2026-04-10 12:54:41.085] [INFO] [server-3] TimeSyncService STARTED
+[2026-04-10 12:54:41.838] [DEBUG] [server-4] NTP sync attempt failed: server=pool.ntp.org, error=Receive timed out
+[2026-04-10 12:54:42.101] [INFO] [server-4] NTP sync SUCCESS: server=time.nist.gov, offset=111ms
+[2026-04-10 12:54:42.104] [INFO] [server-4] ClockSynchronizer started with sync interval 300 seconds
+[2026-04-10 12:54:42.138] [INFO] [server-4] ClockSkewMonitor started with monitor interval 30 seconds
+[2026-04-10 12:54:42.139] [INFO] [server-4] TimeSyncService STARTED
+[2026-04-10 12:54:43.089] [DEBUG] [server-5] NTP sync attempt failed: server=pool.ntp.org, error=Receive timed out
+[2026-04-10 12:54:43.354] [INFO] [server-5] NTP sync SUCCESS: server=time.nist.gov, offset=112ms
+[2026-04-10 12:54:43.357] [INFO] [server-5] ClockSynchronizer started with sync interval 300 seconds
+[2026-04-10 12:54:43.394] [INFO] [server-5] ClockSkewMonitor started with monitor interval 30 seconds
+[2026-04-10 12:54:43.401] [INFO] [server-5] TimeSyncService STARTED
